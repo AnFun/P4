@@ -1,74 +1,55 @@
 #!/usr/bin/env python
 #
+
+"""
+// There is already a basic strategy in place here. You can use it as a
+// starting point, or you can throw it out entirely and replace it with your
+// own.
+"""
 import logging, traceback, sys, os, inspect
 logging.basicConfig(filename=__file__[:-3] +'.log', filemode='w', level=logging.DEBUG)
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
-from planet_wars import PlanetWars, issue_order, finish_turn
+from behavior_tree_bot.behaviors import *
+from behavior_tree_bot.checks import *
+from behavior_tree_bot.bt_nodes import Selector, Sequence, Action, Check
 
+from planet_wars import PlanetWars, finish_turn
 
-def spread(state):
-    my_planets = iter(sorted(state.my_planets(), key=lambda p: p.num_ships))
+# You have to improve this tree or create an entire new one that is capable
+# of winning against all the 5 opponent bots
+def setup_behavior_tree():
 
-    neutral_planets = [planet for planet in state.neutral_planets()
-                      if not any(fleet.destination_planet == planet.ID for fleet in state.my_fleets())]
-    neutral_planets.sort(key=lambda p: p.num_ships)
+    # Top-down construction of behavior tree
+    root = Selector(name='High Level Ordering of Strategies')
 
-    target_planets = iter(neutral_planets)
+    offensive_plan = Sequence(name='Offensive Strategy')
+    largest_fleet_check = Check(have_largest_fleet)
+    attack = Action(attack_weakest_enemy_planet)
+    offensive_plan.child_nodes = [largest_fleet_check, attack]
 
-    try:
-        my_planet = next(my_planets)
-        target_planet = next(target_planets)
-        while True:
-            required_ships = target_planet.num_ships + 1
+    spread_sequence = Sequence(name='Spread Strategy')
+    neutral_planet_check = Check(if_neutral_planet_available)
+    spread_action = Action(spread_to_closest_neutral_planet)
+    spread_sequence.child_nodes = [neutral_planet_check, spread_action]
 
-            if my_planet.num_ships > required_ships:
-                issue_order(state, my_planet.ID, target_planet.ID, required_ships)
-                my_planet = next(my_planets)
-                target_planet = next(target_planets)
-            else:
-                my_planet = next(my_planets)
+    moab_sequence = Sequence(name="fucking make big boy")
 
-    except StopIteration:
-        return
+    root.child_nodes = [moab_sequence, spread_sequence, offensive_plan, attack.copy()]
 
+    logging.info('\n' + root.tree_to_string())
+    return root
 
-def attack(state):
-    my_planets = iter(sorted(state.my_planets(), key=lambda p: p.num_ships))
-
-    enemy_planets = [planet for planet in state.enemy_planets()
-                      if not any(fleet.destination_planet == planet.ID for fleet in state.my_fleets())]
-    enemy_planets.sort(key=lambda p: p.num_ships)
-
-    target_planets = iter(enemy_planets)
-
-    try:
-        my_planet = next(my_planets)
-        target_planet = next(target_planets)
-        while True:
-            required_ships = target_planet.num_ships + \
-                                 state.distance(my_planet.ID, target_planet.ID) * target_planet.growth_rate + 1
-
-            if my_planet.num_ships > required_ships:
-                issue_order(state, my_planet.ID, target_planet.ID, required_ships)
-                my_planet = next(my_planets)
-                target_planet = next(target_planets)
-            else:
-                my_planet = next(my_planets)
-
-    except StopIteration:
-        return
-
-
+# You don't need to change this function
 def do_turn(state):
-    attack(state)
-    spread(state)
+    behavior_tree.execute(planet_wars)
 
 if __name__ == '__main__':
-    logging.basicConfig(filename=__file__[:-3] +'.log', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename=__file__[:-3] + '.log', filemode='w', level=logging.DEBUG)
 
+    behavior_tree = setup_behavior_tree()
     try:
         map_data = ''
         while True:
@@ -83,7 +64,6 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         print('ctrl-c, leaving ...')
-    except:
+    except Exception:
         traceback.print_exc(file=sys.stdout)
         logging.exception("Error in bot.")
-        raise
