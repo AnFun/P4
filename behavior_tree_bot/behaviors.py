@@ -62,7 +62,7 @@ def spread_to_closest_neutral_planet(state):
             dx = m.x - n.x
             dy = m.y - n.y
             distance_temp = sqrt(dx * dx + dy * dy)
-            if distance_temp < distance and m.num_ships/2 > n.num_ships + n.growth_rate*7:
+            if distance_temp < distance and m.num_ships / 2 > n.num_ships + n.growth_rate * 7:
                 distance = distance_temp
                 closest_planet = n
                 parent_planet = m
@@ -73,3 +73,14 @@ def spread_to_closest_neutral_planet(state):
     else:
         # (4) Send half the ships from my strongest planet to the weakest enemy planet.
         return issue_order(state, parent_planet.ID, closest_planet.ID, parent_planet.num_ships / 2)
+
+
+def big_boy_party_time(state):
+    # (2) Find my strongest planet.
+    big_boy = max(state.my_planets(), key=lambda p: p.num_ships, default=None)
+
+    for m in state.my_planets():
+        if m.num_ships > 50:
+            return issue_order(state, m.ID, big_boy.ID, big_boy.num_ships / 2)
+
+    return False

@@ -37,7 +37,7 @@ def setup_behavior_tree():
 
     moab_sequence = Sequence(name="fucking make big boy")
 
-    root.child_nodes = [moab_sequence, spread_sequence, offensive_plan, attack.copy()]
+    root.child_nodes = [spread_sequence, moab_sequence, offensive_plan, attack.copy()]
 
     logging.info('\n' + root.tree_to_string())
     return root
