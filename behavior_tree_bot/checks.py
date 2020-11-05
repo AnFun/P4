@@ -1,5 +1,4 @@
 
-
 def if_neutral_planet_available(state):
     return any(state.neutral_planets())
 
@@ -17,3 +16,6 @@ def is_being_attacked(state):
             if dest_planet == ally.ID:
                 return True
     return False
+
+def is_attackable(state):
+  return False
