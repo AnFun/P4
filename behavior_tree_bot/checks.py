@@ -12,7 +12,12 @@ def if_neutral_planet_available(state):
 
 
 def have_largest_fleet(state):
-  return len([n for n in state.enemy_planets() if weight_hostile(state, n) is not None]) > 0
+  #return len([n for n in state.enemy_planets() if weight_hostile(state, n) is not None]) > 0
+  fleet_min = min(state.enemy_planets(), key=lambda t: t.num_ships, default=None)
+  fleet_max = max(state.my_planets(), key=lambda t: t.num_ships, default=None)
+  if fleet_min is not None and fleet_max is not None and fleet_min < fleet_max:
+    return True
+  return False
 
 
 def is_being_attacked(state):
@@ -23,6 +28,9 @@ def is_being_attacked(state):
         return True
   return False
 
-def is_attackable(state):
-
+def neut_attacked(state):
+  for planet in state.neutral_planets():
+    for enemy in state.enemy_fleets():
+      if enemy.destination_planet == planet.ID:
+        return True
   return False

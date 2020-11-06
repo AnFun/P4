@@ -33,21 +33,31 @@ def attack_weakest_enemy_planet(state):
 
 def defend_planet(state):
   for enemy_fleet in state.enemy_fleets():
-    attacked_planet = enemy_fleet.destination_planet
+    attacked_planet_ID = enemy_fleet.destination_planet
 
     for friendly_planet in state.my_planets():
-      if attacked_planet == friendly_planet.ID:
-        friendly_ships = get_fleet_ship_count(state.my_fleets(), attacked_planet)
-        friendly_total = friendly_ships + friendly_planet.num_ships
-        enemy_ships = get_fleet_ship_count(state.enemy_fleets(), attacked_planet)
+      if attacked_planet_ID == friendly_planet.ID:
+        attacking_fleets = get_attacking_fleets(state.enemy_fleets(), attacked_planet_ID)
+        closest_enemy = min(attacking_fleets, key=lambda f: f.turns_remaining)
+        friendly_ships = get_fleet_ship_count(state.my_fleets(), attacked_planet_ID)
+        friendly_total = friendly_ships + friendly_planet.num_ships + \
+                         closest_enemy.turns_remaining
+        enemy_ships = get_fleet_ship_count(state.enemy_fleets(), attacked_planet_ID)
+        if friendly_total <= enemy_ships:
+          strongest_planet = sorted(state.my_planets(), key=lambda p: p.num_ships + state.distance(p.ID, friendly_planet.ID))[::-1]
+          for helper_planet in strongest_planet:
 
-        for helper_planet in state.my_planets():
-          enemy_distance_growth = (state.distance(helper_planet.ID, enemy_fleet.source_planet) - state.distance(
-            attacked_planet, enemy_fleet.source_planet)) * friendly_planet.growth_rate
-          if helper_planet.ID != attacked_planet and \
-            friendly_total < enemy_ships + enemy_distance_growth + 1 < helper_planet.num_ships + friendly_total > 0:
-            return issue_order(state, helper_planet.ID, attacked_planet,
-                               enemy_ships + enemy_distance_growth + 1 - friendly_total)
+            enemy_distance_growth = state.distance(helper_planet.ID, attacked_planet_ID) * friendly_planet.growth_rate
+            if not is_targeted(state.enemy_fleets(), helper_planet):
+              if enemy_ships + enemy_distance_growth + 1 > helper_planet.num_ships + friendly_total:
+                return issue_order(state, helper_planet.ID, attacked_planet_ID, helper_planet.num_ships - 1)
+              elif enemy_ships + enemy_distance_growth + 1 < helper_planet.num_ships + friendly_total > 0:
+                ships_sending = enemy_ships + enemy_distance_growth + 1 - friendly_ships
+                return issue_order(state, helper_planet.ID, attacked_planet_ID, ships_sending)
+            """if helper_planet.ID != attacked_planet_ID and not is_targeted(state.enemy_fleets(), helper_planet.ID) and \
+              enemy_ships + enemy_distance_growth + 1 < helper_planet.num_ships + friendly_total > 0:
+              ships_sending = enemy_ships + enemy_distance_growth + 1 - friendly_ships
+              return issue_order(state, helper_planet.ID, attacked_planet_ID, ships_sending)"""
 
   return False
 
@@ -108,18 +118,71 @@ def spread_that_fun(state):
   return issue_order(state, closest_to_neut.ID, best_neut.ID, best_neut.num_ships + 1)
 
 
+def neut_overtake(state):
+  enemy_fleets = state.enemy_fleets()
+  my_fleets = state.my_fleets()
+  def_planet = None
+  my_planet = None
+  neut_planet_change = 100000
+  for neut_planet in state.planets:
+    for enemy_fleet in enemy_fleets:
+      if enemy_fleet.destination_planet == neut_planet.ID:
+        sorted_allies = sorted(state.my_planets(), key=lambda n: state.distance(n.ID, neut_planet.ID))
+        for ally in sorted_allies:
+
+          if not is_targeted(enemy_fleets, ally.ID) and \
+            enemy_fleet.turns_remaining - state.distance(ally.ID, neut_planet.ID) >= 1:
+
+            enemy_fleet_total = get_fleet_ship_count(enemy_fleets, neut_planet.ID) - neut_planet.num_ships
+            if enemy_fleet_total >= 0:
+              enemy_fleet_total += planet_growth(state.distance(ally.ID, neut_planet.ID) - enemy_fleet.turns_remaining,
+                                                 neut_planet.growth_rate)
+            else:
+              enemy_fleet_total *= -1
+
+            if enemy_fleet_total < neut_planet_change and ally.num_ships > enemy_fleet_total + 1:
+              neut_planet_change = enemy_fleet_total
+              def_planet = neut_planet
+              my_planet = ally
+
+  if my_planet is not None and def_planet is not None and neut_planet_change + 1 >= 1:
+    return issue_order(state, my_planet.ID, def_planet.ID, neut_planet_change + 1)
+
+  return False
+
+
+def spread_time(state):
+  my_planets = sorted(state.my_planets(), key=lambda f: f.num_ships)[::-1]
+  for my_planet in my_planets:
+    if not is_targeted(state.enemy_fleets(), my_planet.ID):
+      neutral_planets = sorted(state.neutral_planets(), key=lambda n: spread_weight(state, my_planet, n))[::-1]
+      for neutral_planet in neutral_planets:
+        if not is_targeted(state.my_fleets(),
+                           neutral_planet.ID) and my_planet.num_ships > neutral_planet.num_ships + get_fleet_ship_count(
+          state.enemy_fleets(), my_planet.ID) + 1:
+          return issue_order(state, my_planet.ID, neutral_planet.ID, neutral_planet.num_ships + get_fleet_ship_count(
+            state.enemy_fleets(), my_planet.ID) + 1)
+
+
+def spread_weight(state, planet, src_planet):
+  return planet.num_ships + state.distance(planet.ID, src_planet.ID) * planet.growth_rate
+
+
 def attack_fun(state):
   has_weight = [n for n in state.enemy_planets() if weight_hostile(state, n) is not None]
   if not has_weight:
     return False
 
-  best_hostile = max(has_weight, key=lambda n: weight_hostile(state, n))
-  closest_to_neut = planets_that_could_hurt_me(state, best_hostile)[0]
+  hostile_sorted = sorted(has_weight, key=lambda n: weight_hostile(state, n))[::-1]
+  for best_hostile in hostile_sorted:
+    if not is_targeted(state.enemy_fleets(), best_hostile.ID):
+      closest_to_neut = planets_that_could_hurt_me(state, best_hostile)[0]
 
-  attack_with = best_hostile.num_ships + ceil(
-    state.distance(best_hostile.ID, closest_to_neut.ID)) * best_hostile.growth_rate
+      attack_with = best_hostile.num_ships + state.distance(best_hostile.ID, closest_to_neut.ID
+                                                            ) * best_hostile.growth_rate
+      return issue_order(state, closest_to_neut.ID, best_hostile.ID, attack_with + 1)
 
-  return issue_order(state, closest_to_neut.ID, best_hostile.ID, attack_with + 1)
+  return False
 
 
 def spread_to_closest_neutral_planet(state):
@@ -147,6 +210,18 @@ def spread_to_closest_neutral_planet(state):
     return issue_order(state, parent_planet.ID, closest_planet.ID, closest_planet.num_ships + 1)
 
 
+def attack_planets(state):
+  """
+  sorted list of planet values by weight
+  :param state:
+  :return:
+  """
+
+
+def planet_growth(turns, growth_rate):
+  return turns * growth_rate
+
+
 def is_targeted(fleets, planet_id):
   for fleet in fleets:
     if fleet.destination_planet == planet_id:
@@ -161,3 +236,11 @@ def get_fleet_ship_count(fleets, planet_id):
       ship_count += fleet.num_ships
 
   return ship_count
+
+
+def get_attacking_fleets(fleets, planet_id):
+  ret_fleets = []
+  for fleet in fleets:
+    if fleet.destination_planet == planet_id:
+      ret_fleets.append(fleet)
+  return ret_fleets

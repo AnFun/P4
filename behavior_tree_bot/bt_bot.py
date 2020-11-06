@@ -33,15 +33,20 @@ def setup_behavior_tree():
 
   spread_sequence = Sequence(name='Spread Strategy')
   neutral_planet_check = Check(if_neutral_planet_available)
-  spread_action = Action(spread_that_fun)
+  spread_action = Action(spread_time)
   spread_sequence.child_nodes = [neutral_planet_check, spread_action]
+
+  neut_sequence = Sequence(name='Neutral Strategy')
+  neut_attacked_check = Check(neut_attacked)
+  neut_action = Action(neut_overtake)
+  neut_sequence.child_nodes = [neut_attacked_check, neut_action]
 
   offensive_plan = Sequence(name="Offensive Strategy")
   largest_fleet_check = Check(have_largest_fleet)
   attack = Action(attack_fun)
   offensive_plan.child_nodes = [largest_fleet_check, attack]
 
-  root.child_nodes = [offensive_plan, spread_sequence, defensive_plan]
+  root.child_nodes = [offensive_plan, defensive_plan, neut_sequence, spread_sequence]
 
   logging.info('\n' + root.tree_to_string())
   return root
