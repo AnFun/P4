@@ -1,21 +1,28 @@
+from behavior_tree_bot.behaviors import weight_hostile, weight_by, get_fleet_ship_count
+
 
 def if_neutral_planet_available(state):
-    return any(state.neutral_planets())
+  strongest_planet = max(state.my_planets(), key=lambda t: t.num_ships, default=None)
+  weakest_planet = min(state.neutral_planets(),
+                       key=lambda t: t.num_ships - get_fleet_ship_count(state.enemy_fleets(), t.ID), default=None)
+  if weakest_planet is not None and strongest_planet.num_ships > abs(
+    weakest_planet.num_ships - get_fleet_ship_count(state.enemy_fleets(), weakest_planet.ID)) + 1:
+    return True
+  return False
 
 
 def have_largest_fleet(state):
-    return sum(planet.num_ships for planet in state.my_planets()) \
-             + sum(fleet.num_ships for fleet in state.my_fleets()) \
-           > sum(planet.num_ships for planet in state.enemy_planets()) \
-             + sum(fleet.num_ships for fleet in state.enemy_fleets())
+  return len([n for n in state.enemy_planets() if weight_hostile(state, n) is not None]) > 0
+
 
 def is_being_attacked(state):
-    for enemy in state.enemy_fleets():
-        dest_planet = enemy.destination_planet
-        for ally in state.my_planets():
-            if dest_planet == ally.ID:
-                return True
-    return False
+  for enemy in state.enemy_fleets():
+    dest_planet = enemy.destination_planet
+    for ally in state.my_planets():
+      if dest_planet == ally.ID:
+        return True
+  return False
 
 def is_attackable(state):
+
   return False
