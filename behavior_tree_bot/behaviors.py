@@ -78,7 +78,8 @@ def attacking(state, planet):
 
 def planets_that_could_hurt_me(state, planet):
   return [p for p in state.my_planets() if
-          p.num_ships > planet.num_ships * 1.2 and state.distance(p.ID, planet.ID) <= 10]
+          p.num_ships > planet.num_ships - state.distance(p.ID, planet.ID) * p.growth_rate and state.distance(
+            p.ID, planet.ID) <= 10]
 
 
 def weight_by(planets, fn):
@@ -155,7 +156,7 @@ def spread_time(state):
   my_planets = sorted(state.my_planets(), key=lambda f: f.num_ships)[::-1]
   for my_planet in my_planets:
     if not is_targeted(state.enemy_fleets(), my_planet.ID):
-      neutral_planets = sorted(state.neutral_planets(), key=lambda n: spread_weight(state, my_planet, n))[::-1]
+      neutral_planets = sorted(state.neutral_planets(), key=lambda n: spread_weight(state, my_planet, n))
       for neutral_planet in neutral_planets:
         if not is_targeted(state.my_fleets(),
                            neutral_planet.ID) and my_planet.num_ships > neutral_planet.num_ships + get_fleet_ship_count(
@@ -165,7 +166,7 @@ def spread_time(state):
 
 
 def spread_weight(state, planet, src_planet):
-  return planet.num_ships + state.distance(planet.ID, src_planet.ID) * planet.growth_rate
+  return planet.num_ships + (state.distance(planet.ID, src_planet.ID))
 
 
 def attack_fun(state):

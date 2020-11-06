@@ -46,7 +46,7 @@ def setup_behavior_tree():
   attack = Action(attack_fun)
   offensive_plan.child_nodes = [largest_fleet_check, attack]
 
-  root.child_nodes = [offensive_plan, defensive_plan, neut_sequence, spread_sequence]
+  root.child_nodes = [spread_sequence, offensive_plan, defensive_plan, neut_sequence]
 
   logging.info('\n' + root.tree_to_string())
   return root
