@@ -1,13 +1,5 @@
 from behavior_tree_bot.behaviors import weight_hostile, weight_by, get_fleet_ship_count, planet_from_id, being_attacked
 
-"""def if_neutral_planet_available(state):
-  strongest_planet = max(state.my_planets(), key=lambda t: t.num_ships, default=None)
-  weakest_planet = min(state.neutral_planets(),
-                       key=lambda t: t.num_ships - get_fleet_ship_count(state.enemy_fleets(), t.ID), default=None)
-  if weakest_planet is not None and strongest_planet.num_ships > abs(
-    weakest_planet.num_ships - get_fleet_ship_count(state.enemy_fleets(), weakest_planet.ID)) + 1:
-    return True
-  return False"""
 
 
 def if_neutral_planet_available(state):
@@ -16,6 +8,12 @@ def if_neutral_planet_available(state):
   neut_min = min(neut_planet, key=lambda t: t.num_ships, default=None)
   my_max = max(my_planet, key=lambda t: t.num_ships, default=None)
   if neut_min is not None and my_max is not None and my_max.num_ships > neut_min.num_ships:
+    return True
+  return False
+
+
+def killing_blow(state):
+  if sum(t.num_ships for t in state.enemy_planets()) * 2 < sum(t.num_ships for t in state.my_planets()):
     return True
   return False
 

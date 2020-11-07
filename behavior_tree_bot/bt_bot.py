@@ -42,11 +42,15 @@ def setup_behavior_tree():
   neut_sequence.child_nodes = [neut_attacked_check, neut_action]
 
   offensive_plan = Sequence(name="Offensive Strategy")
-  largest_fleet_check = Check(have_largest_fleet)
   attack = Action(attack_fun)
-  offensive_plan.child_nodes = [largest_fleet_check, attack]
+  offensive_plan.child_nodes = [attack]
 
-  root.child_nodes = [spread_sequence, offensive_plan, defensive_plan, neut_sequence]
+  super_offensive_plan = Sequence(name="Super Offensive Strategy")
+  super_offensive_check = Check(killing_blow)
+  super_attack = Action(killing_blow_action)
+  super_offensive_plan.child_nodes = [super_offensive_check, super_attack]
+
+  root.child_nodes = [super_offensive_plan, offensive_plan, neut_sequence, defensive_plan, spread_sequence]
 
   logging.info('\n' + root.tree_to_string())
   return root
